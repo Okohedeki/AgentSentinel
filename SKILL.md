@@ -1,57 +1,60 @@
 ---
-name: claude-vitals
-version: "1.0.0"
+name: agent-sentinel
+version: "0.1.0"
 description: >
-  Self-quality verification for Claude Code. Scans session logs, computes 20
-  behavioral and quality metrics, detects regressions, and applies corrective
-  behaviors when performance degrades. Based on the analysis of 234,760 tool
-  calls that proved reduced thinking depth causes measurable quality collapse.
+  Self-quality verification and recovery for AI coding agents. Scans session
+  logs, computes 20+ behavioral and quality metrics, detects regressions, and
+  applies corrective behaviors when performance degrades. Based on the analysis
+  of 234,760 tool calls that proved reduced thinking depth causes measurable
+  quality collapse.
 argument-hint: |
-  /vitals              Full diagnostic with behavioral corrections
-  /vitals-quick        Fast health check, silent if green
-  /vitals-report       GitHub-postable markdown report
-  /vitals-dashboard    Launch the web dashboard
+  /sentinel              Full diagnostic with behavioral corrections
+  /sentinel-quick        Fast health check, silent if green
+  /sentinel-report       GitHub-postable markdown report
+  /sentinel-dashboard    Launch the web dashboard
 allowed-tools:
   - Bash
   - Read
 user-invocable: true
-homepage: https://github.com/anthropics/claude-code/issues/42796
+homepage: https://github.com/Okohedeki/AgentSentinel
 author: Built on research by @stellaraccident
 license: MIT
 ---
 
-# claude-vitals
+# agent-sentinel
 
-Self-quality verification for Claude Code sessions.
+Self-quality verification for AI coding agent sessions.
 
 You are running a diagnostic check against your own session logs. The data comes from your actual behavior — tool calls, thinking blocks, user reactions — not self-assessment.
 
+**NOTE:** The `SENTINEL_BIN` variable below must point to the built `dist/index.js` in your AgentSentinel installation. If installed globally via npm, use `sentinel` directly. Otherwise use `node /path/to/AgentSentinel/dist/index.js`.
+
 ---
 
-## /vitals — Full Diagnostic
+## /sentinel — Full Diagnostic
 
 ### Step 1: Scan
 
 Ingest any new session data and compute metrics:
 
 ```bash
-node H:/ClaudeValidate/dist/index.js scan
+sentinel scan
 ```
 
 ### Step 2: Health Check
 
 ```bash
-node H:/ClaudeValidate/dist/index.js health
+sentinel health
 ```
 
-If GREEN — report "Vitals: green" to the user and stop.
+If GREEN — report "Sentinel: green" to the user and stop.
 
 If YELLOW or RED — continue to Step 3.
 
 ### Step 3: Full Report
 
 ```bash
-node H:/ClaudeValidate/dist/index.js report
+sentinel report
 ```
 
 Read the output. Identify every metric in WARNING or DEGRADED range using these benchmarks:
@@ -110,7 +113,7 @@ Be more thorough. Read before editing. Don't skip steps. Don't produce partial w
 If any metric is in WARNING or DEGRADED range, check for config-level fixes:
 
 ```bash
-node H:/ClaudeValidate/dist/index.js prescribe
+sentinel prescribe
 ```
 
 This outputs specific environment variables, settings.json values, and CLAUDE.md rules to fix the degraded metrics. Report these to the user.
@@ -118,10 +121,10 @@ This outputs specific environment variables, settings.json values, and CLAUDE.md
 If they agree, apply automatically:
 
 ```bash
-node H:/ClaudeValidate/dist/index.js prescribe --apply
+sentinel prescribe --apply
 ```
 
-This writes the fixes to `~/.claude/settings.json` and `~/.claude/CLAUDE.md`. The impact can be measured after 7 days with `claude-vitals impact`.
+This writes the fixes to `~/.claude/settings.json` and `~/.claude/CLAUDE.md`. The impact can be measured after 7 days with `sentinel impact`.
 
 ### Step 5: Report to User
 
@@ -135,18 +138,18 @@ Be direct. If you're degraded, say so.
 
 ---
 
-## /vitals-quick — Fast Check
+## /sentinel-quick — Fast Check
 
 Silent self-check. Only speak up if something is wrong.
 
 ```bash
-node H:/ClaudeValidate/dist/index.js scan 2>/dev/null
-node H:/ClaudeValidate/dist/index.js health
+sentinel scan 2>/dev/null
+sentinel health
 ```
 
-- GREEN: Say "Vitals: green" and move on.
-- YELLOW: Say "Vitals: yellow" + one-line summary. Apply corrections silently.
-- RED: Say "Vitals: red" + list critical regressions. Ask user if they want full `/vitals` or to continue with corrections applied.
+- GREEN: Say "Sentinel: green" and move on.
+- YELLOW: Say "Sentinel: yellow" + one-line summary. Apply corrections silently.
+- RED: Say "Sentinel: red" + list critical regressions. Ask user if they want full `/sentinel` or to continue with corrections applied.
 
 Regardless of status, always apply baseline behaviors:
 - Read every file before editing it
@@ -157,26 +160,26 @@ Regardless of status, always apply baseline behaviors:
 
 ---
 
-## /vitals-report — Markdown Report
+## /sentinel-report — Markdown Report
 
 Generate a GitHub-postable quality report:
 
 ```bash
-node H:/ClaudeValidate/dist/index.js scan 2>&1
-node H:/ClaudeValidate/dist/index.js report --format md
+sentinel scan 2>&1
+sentinel report --format md
 ```
 
 Output the full markdown. Do not summarize or abbreviate.
 
 ---
 
-## /vitals-dashboard — Web Dashboard
+## /sentinel-dashboard — Web Dashboard
 
 Launch the interactive dashboard:
 
 ```bash
-node H:/ClaudeValidate/dist/index.js scan 2>&1
-node H:/ClaudeValidate/dist/index.js dashboard
+sentinel scan 2>&1
+sentinel dashboard
 ```
 
 Tell the user the dashboard is at http://localhost:7847.

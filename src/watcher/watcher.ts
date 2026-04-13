@@ -11,6 +11,9 @@ import { discoverSessionLogs, RawLogEntry, parseAssistantMessage, parseUserMessa
 import { RollingWindow } from './metrics-window';
 import { classifyFailureMode, buildDegradationEvent } from './failure-classifier';
 import { WatcherConfig, DEFAULT_WATCHER_CONFIG, SessionMetrics, DegradationEvent } from './types';
+import { SentinelDB } from '../db/database';
+import { ContextBus } from '../context-bus/context-bus';
+import { ContextBusPopulator } from '../context-bus/populator';
 
 interface WatcherEvents {
   degradation: (event: DegradationEvent) => void;
@@ -27,10 +30,24 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
   private running = false;
   private lastMetrics: SessionMetrics | null = null;
 
+  // Context bus integration
+  private db: SentinelDB | null = null;
+  private populators: Map<string, ContextBusPopulator> = new Map();
+
   constructor(config: Partial<WatcherConfig> = {}) {
     super();
     this.config = { ...DEFAULT_WATCHER_CONFIG, ...config };
     this.window = new RollingWindow(this.config.windowMinutes);
+  }
+
+  /**
+   * Attach a database for context bus population.
+   * When set, the watcher writes file operations, tool calls, and decisions
+   * to the context bus tables in real time — enabling `sentinel context show`
+   * and `sentinel context handoff` to return live data.
+   */
+  attachDatabase(db: SentinelDB): void {
+    this.db = db;
   }
 
   /** Start watching session log files for changes */
@@ -62,7 +79,7 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
     }, this.config.pollIntervalMs);
   }
 
-  /** Stop watching */
+  /** Stop watching and close database if owned */
   stop(): void {
     this.running = false;
     if (this.fsWatcher) {
@@ -90,7 +107,6 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
       return this.config.watchPaths;
     }
 
-    // Discover all project directories containing JSONL files
     const homeDir = os.homedir();
     const claudeProjectsDir = path.join(homeDir, '.claude', 'projects');
     const dirs: string[] = [];
@@ -98,6 +114,39 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
       dirs.push(claudeProjectsDir);
     }
     return dirs;
+  }
+
+  /** Get or create a ContextBusPopulator for a given session */
+  private getPopulator(sessionId: string, filePath: string): ContextBusPopulator | null {
+    if (!this.db) return null;
+    if (!sessionId) return null;
+
+    let populator = this.populators.get(sessionId);
+    if (!populator) {
+      const projectPath = this.extractProjectPath(filePath);
+      const bus = new ContextBus(this.db, sessionId, projectPath);
+      populator = new ContextBusPopulator(bus);
+      this.populators.set(sessionId, populator);
+
+      // Record this agent run
+      bus.recordAgentRun({
+        agentType: 'claude-code',
+        modelVersion: '',
+        startTime: new Date(),
+        qualityScore: 1.0,
+      });
+    }
+    return populator;
+  }
+
+  private extractProjectPath(filePath: string): string {
+    const normalized = filePath.replace(/\\/g, '/');
+    const parts = normalized.split('/');
+    const projIdx = parts.indexOf('projects');
+    if (projIdx >= 0 && projIdx + 1 < parts.length) {
+      return parts[projIdx + 1];
+    }
+    return 'unknown';
   }
 
   private handleFileChange(filePath: string): void {
@@ -108,7 +157,7 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
       if (newEntries.length === 0) return;
 
       for (const entry of newEntries) {
-        this.processEntry(entry);
+        this.processEntry(entry, filePath);
       }
     } catch (err) {
       this.emit('error', err instanceof Error ? err : new Error(String(err)));
@@ -155,17 +204,20 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
     }
   }
 
-  /** Process a single JSONL entry into the rolling window */
-  private processEntry(entry: RawLogEntry): void {
+  /** Process a single JSONL entry into metrics window AND context bus */
+  private processEntry(entry: RawLogEntry, filePath: string): void {
     const timestamp = entry.timestamp ? new Date(entry.timestamp) : new Date();
+    const sessionId = entry.sessionId || '';
+    const populator = this.getPopulator(sessionId, filePath);
 
     switch (entry.type) {
       case 'assistant': {
         const parsed = parseAssistantMessage(entry);
         if (parsed.model) this.window.setModel(parsed.model);
 
+        // Feed metrics window
         for (const tc of parsed.toolCalls) {
-          this.window.addToolCall(tc, timestamp, entry.sessionId || '');
+          this.window.addToolCall(tc, timestamp, sessionId);
         }
         for (const tb of parsed.thinkingBlocks) {
           this.window.addThinkingBlock(tb, timestamp);
@@ -176,6 +228,11 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
         for (const lv of parsed.lazinessViolations) {
           this.window.addLazinessViolation(timestamp, lv.category, lv.phrase);
         }
+
+        // Feed context bus
+        if (populator) {
+          populator.processAssistantMessage(parsed, sessionId);
+        }
         break;
       }
 
@@ -184,9 +241,13 @@ export class SessionWatcher extends EventEmitter<WatcherEvents> {
         if (parsed.isHumanPrompt) {
           this.window.addUserPrompt(timestamp, parsed.isInterrupt, true);
         }
-        // Process tool results for success rate tracking
         for (const tr of parsed.toolResults) {
           this.window.addToolResult(timestamp, tr.toolUseId, tr.isError);
+        }
+
+        // Feed context bus
+        if (populator) {
+          populator.processUserMessage(parsed);
         }
         break;
       }

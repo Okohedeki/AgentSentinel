@@ -487,14 +487,19 @@ program
   .option('--db <path>', 'Custom database path')
   .action((opts) => {
     const config = loadConfig({ db: opts.db, window: parseInt(opts.window) });
+    const db = new SentinelDB(opts.db);
     const watcher = new SessionWatcher({
       windowMinutes: config.metricsWindowMinutes,
       thresholds: config.qualityFloor,
     });
 
+    // Attach database so context bus is populated in real time
+    watcher.attachDatabase(db);
+
     console.log(chalk.bold('\n  AGENT SENTINEL — Real-Time Watcher\n'));
     console.log(chalk.gray(`  Window: ${config.metricsWindowMinutes} min | Polling: ${watcher['config'].pollIntervalMs / 1000}s`));
-    console.log(chalk.gray('  Watching ~/.claude/projects/ for session activity...\n'));
+    console.log(chalk.gray('  Watching ~/.claude/projects/ for session activity...'));
+    console.log(chalk.gray('  Context bus: ACTIVE — file ops and tool calls are being recorded\n'));
 
     watcher.on('metrics', (metrics) => {
       if (opts.verbose) {
@@ -521,19 +526,14 @@ program
       console.log(chalk.gray(`    R:E=${event.metrics.readEditRatio.toFixed(1)} Depth=${Math.round(event.metrics.thinkingDepthScore)} Blind=${event.metrics.editsWithoutPriorRead.toFixed(0)}%`));
       console.log('');
 
-      // Persist event to database
-      const db = new SentinelDB(opts.db);
-      try {
-        db.insertWatcherEvent({
-          session_id: event.sessionId || 'unknown',
-          severity: event.severity,
-          failure_mode: event.failureMode,
-          metrics_json: JSON.stringify(event.metrics),
-          timestamp: event.timestamp.toISOString(),
-        });
-      } finally {
-        db.close();
-      }
+      // Persist degradation event
+      db.insertWatcherEvent({
+        session_id: event.sessionId || 'unknown',
+        severity: event.severity,
+        failure_mode: event.failureMode,
+        metrics_json: JSON.stringify(event.metrics),
+        timestamp: event.timestamp.toISOString(),
+      });
     });
 
     watcher.on('error', (err) => {
@@ -546,6 +546,7 @@ program
     process.on('SIGINT', () => {
       console.log(chalk.gray('\n\n  Watcher stopped.'));
       watcher.stop();
+      db.close();
       process.exit(0);
     });
   });

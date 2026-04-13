@@ -6,7 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-node "$PROJECT_DIR/dist/index.js" scan --db "$HOME/.sentinel/vitals.db" 2>/dev/null
+node "$PROJECT_DIR/dist/index.js" scan --db "$HOME/.agent-sentinel/sentinel.db" 2>/dev/null
 
 # Log the run
-echo "$(date -Iseconds) auto-scan complete" >> "$HOME/.sentinel/auto-scan.log"
+echo "$(date -Iseconds) auto-scan complete" >> "$HOME/.agent-sentinel/auto-scan.log"

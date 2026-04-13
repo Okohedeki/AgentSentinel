@@ -1,5 +1,7 @@
 import { SentinelDB } from '../db/database';
 import { discoverSessionLogs, parseSessionLog, ParsedSessionLog, ParsedAssistantMessage, ParsedUserMessage } from './log-parser';
+import { ContextBus } from '../context-bus/context-bus';
+import { ContextBusPopulator } from '../context-bus/populator';
 import chalk from 'chalk';
 
 // Signature-to-content correlation factor from the original analysis (r=0.97)
@@ -215,6 +217,26 @@ export class Scanner {
 
       // Update bash success from tool results
       this.updateBashSuccess(sessionId);
+
+      // Populate context bus tables from parsed data
+      const bus = new ContextBus(this.db, sessionId, projectPath);
+      const populator = new ContextBusPopulator(bus);
+
+      for (const am of parsed.assistantMessages) {
+        populator.processAssistantMessage(am, sessionId);
+      }
+      for (const um of parsed.userMessages) {
+        populator.processUserMessage(um);
+      }
+
+      // Record agent run metadata
+      bus.recordAgentRun({
+        agentType: 'claude-code',
+        modelVersion: parsed.metadata.model || '',
+        startTime: parsed.metadata.startedAt ? new Date(parsed.metadata.startedAt) : new Date(),
+        endTime: parsed.metadata.endedAt ? new Date(parsed.metadata.endedAt) : undefined,
+        qualityScore: 1.0,
+      });
     });
 
     ingestAll();

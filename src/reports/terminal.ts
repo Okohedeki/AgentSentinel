@@ -278,7 +278,7 @@ export class TerminalReport {
     // Header
     console.log('');
     console.log(chalk.bold.cyan('  ╔══════════════════════════════════════════════════════════════════╗'));
-    console.log(chalk.bold.cyan('  ║') + chalk.bold.white('           CLAUDE VITALS REPORT                                ') + chalk.bold.cyan('║'));
+    console.log(chalk.bold.cyan('  ║') + chalk.bold.white('           AGENT SENTINEL REPORT                               ') + chalk.bold.cyan('║'));
     console.log(chalk.bold.cyan('  ╚══════════════════════════════════════════════════════════════════╝'));
     console.log('');
 

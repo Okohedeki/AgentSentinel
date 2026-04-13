@@ -1,4 +1,4 @@
-Build an open source CLI tool called "claude-vitals" that continuously monitors Claude Code quality by analyzing session logs (~/.claude/projects/ on Unix, %USERPROFILE%\.claude\projects\ on Windows, check WSL paths too). TypeScript, Node >= 18, SQLite for storage, single-file HTML dashboard with React + Recharts from CDN. Commander.js CLI. MIT license.
+Build an open source CLI tool called "sentinel" that continuously monitors Claude Code quality by analyzing session logs (~/.claude/projects/ on Unix, %USERPROFILE%\.claude\projects\ on Windows, check WSL paths too). TypeScript, Node >= 18, SQLite for storage, single-file HTML dashboard with React + Recharts from CDN. Commander.js CLI. MIT license.
 
 The project is inspired by and replicates the analysis from https://github.com/anthropics/claude-code/issues/42796 — where a power user proved that reduced thinking depth caused measurable quality collapse across 234,760 tool calls. We make that analysis continuous, automatic, and extended with change-impact tracking.
 
@@ -350,11 +350,11 @@ Everything above tells you HOW quality is trending. Change tracking tells you WH
 - Snapshot the content, compute word count, track additions/removals
 
 ### What users can annotate manually:
-claude-vitals annotate "Switched to Opus"
-claude-vitals annotate "Added error-handling skill"
-claude-vitals annotate "Set /effort max"
-claude-vitals annotate "Rewrote CLAUDE.md testing section"
-claude-vitals annotate "Started 5 concurrent sessions"
+sentinel annotate "Switched to Opus"
+sentinel annotate "Added error-handling skill"
+sentinel annotate "Set /effort max"
+sentinel annotate "Rewrote CLAUDE.md testing section"
+sentinel annotate "Started 5 concurrent sessions"
 
 ### How to correlate:
 For every detected or annotated change, automatically compute all 20 metrics above for 7 days before and 7 days after. Present a before/after comparison table showing which metrics improved, degraded, or stayed stable. Give a one-line verdict: "This change IMPROVED quality across 6/8 key metrics" or "This change DEGRADED Read:Edit ratio and increased laziness signals."
@@ -375,15 +375,15 @@ Compare rolling 7-day windows. Auto-flag when:
 - Session autonomy drops >25%
 - Bash success rate drops >10 percentage points
 
-Surface in CLI (`claude-vitals health` for one-liner), in reports, and as alert banners on the dashboard.
+Surface in CLI (`sentinel health` for one-liner), in reports, and as alert banners on the dashboard.
 
 ---
 
 ## OUTPUTS
 
-**CLI:** `claude-vitals scan` ingests logs into SQLite. `claude-vitals report` prints colored terminal tables with sparklines and trend arrows. `claude-vitals health` gives a one-line green/yellow/red status. `claude-vitals dashboard` launches a local Grafana-style dark-themed web dashboard with all charts. `claude-vitals compare` does side-by-side period comparison. `claude-vitals annotate` logs changes. `claude-vitals impact <change-id>` shows before/after for a specific change.
+**CLI:** `sentinel scan` ingests logs into SQLite. `sentinel report` prints colored terminal tables with sparklines and trend arrows. `sentinel health` gives a one-line green/yellow/red status. `sentinel dashboard` launches a local Grafana-style dark-themed web dashboard with all charts. `sentinel compare` does side-by-side period comparison. `sentinel annotate` logs changes. `sentinel impact <change-id>` shows before/after for a specific change.
 
-**Markdown report mode** should produce output structured like the original GitHub analysis — tables, weekly trends, appendices for behavioral patterns, vocabulary analysis. Someone should be able to run `claude-vitals report --format md` and post the result as a GitHub issue.
+**Markdown report mode** should produce output structured like the original GitHub analysis — tables, weekly trends, appendices for behavioral patterns, vocabulary analysis. Someone should be able to run `sentinel report --format md` and post the result as a GitHub issue.
 
 **Dashboard** should be a single HTML file, no build step, React + Recharts from CDN, dark theme, with a change timeline across the top so every chart shows when you made changes, and you can click any change to see its impact overlay.
 
