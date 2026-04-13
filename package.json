@@ -1,0 +1,52 @@
+{
+  "name": "agent-sentinel",
+  "version": "0.1.0",
+  "description": "Automated quality recovery system for AI coding agents — detect degradation, diagnose failure modes, recover programmatically",
+  "main": "dist/index.js",
+  "bin": {
+    "sentinel": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "codex",
+    "gemini",
+    "ai-agents",
+    "quality",
+    "monitoring",
+    "recovery",
+    "session-logs",
+    "ai-coding",
+    "metrics",
+    "dashboard"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "chalk": "^4.1.2",
+    "chokidar": "^3.6.0",
+    "commander": "^13.1.0",
+    "eventemitter3": "^5.0.1",
+    "open": "^8.4.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^1.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}
